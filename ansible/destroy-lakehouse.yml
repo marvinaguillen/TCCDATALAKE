@@ -1,0 +1,24 @@
+---
+- name: "Destrucción de la Infraestructura del Clúster"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    id: "86"                          # Tu ID de alumno
+
+  tasks:
+    - name: AWS EC2 - Buscar los IDs de las instancias del proyecto
+      ec2_instance_info:
+        region: "us-east-1"
+        filters:
+          "tag:ansible": "proyecto-dgt"
+          "instance-state-name": "running"
+      register: resultado_busqueda
+
+    - name: AWS EC2 - Terminar (borrar) las instancias encontradas
+      ec2:
+        region: "us-east-1"
+        state: absent
+        instance_ids: "{{ item.instance_id }}"
+      with_items: "{{ resultado_busqueda.instances }}"
+      when: resultado_busqueda.instances | length > 0

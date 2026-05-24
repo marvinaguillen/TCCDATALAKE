@@ -1,0 +1,56 @@
+alucloud86@lab:~/proyecto_tcc/ansible$ ansible-playbook -i inventory.ini deploy-lakehouse.yml
+
+PLAY [Despliegue de la Capa de Almacenamiento y Transaccionalidad ACID en Instancias t3.small] **********************
+
+TASK [Gathering Facts] **********************************************************************************************
+fatal: [mi_servidor_dgt]: UNREACHABLE! => {"changed": false, "msg": "Failed to connect to the host via ssh: ssh: Could not resolve hostname ip_publica_de_tu_ec2: Temporary failure in name resolution", "unreachable": true}
+
+PLAY RECAP **********************************************************************************************************
+mi_servidor_dgt            : ok=0    changed=0    unreachable=1    failed=0    skipped=0    rescued=0    ignored=0
+
+alucloud86@lab:~/proyecto_tcc/ansible$
+alucloud86@lab:~/proyecto_tcc/ansible$ ansible-playbook -i inventory.ini deploy-lakehouse.yml
+
+PLAY [Despliegue de la Capa de Almacenamiento y Transaccionalidad ACID en Instancias t3.small] **********************
+
+TASK [Gathering Facts] **********************************************************************************************
+fatal: [mi_servidor_dgt]: UNREACHABLE! => {"changed": false, "msg": "Failed to connect to the host via ssh: ssh: connect to host 54.210.34.115 port 22: Connection timed out", "unreachable": true}
+
+PLAY RECAP **********************************************************************************************************
+mi_servidor_dgt            : ok=0    changed=0    unreachable=1    failed=0    skipped=0    rescued=0    ignored=0
+
+alucloud86@lab:~/proyecto_tcc/ansible$
+alucloud86@lab:~/proyecto_tcc/ansible$ ls
+deploy-lakehouse.yml  inventory.ini
+alucloud86@lab:~/proyecto_tcc/ansible$ ansible-playbook -i inventory.ini deploy-lakehouse.yml
+ERROR! couldn't resolve module/action 'amazon.aws.ec2_security_group'. This often indicates a misspelling, missing    collection, or incorrect module path.
+
+The error appears to be in '/home/alucloud86/proyecto_tcc/ansible/deploy-lakehouse.yml': line 13, column 7, but ma   y
+be elsewhere in the file depending on the exact syntax problem.
+
+The offending line appears to be:
+
+  tasks:
+    - name: AWS Security - Asegurar que el Grupo de Seguridad permite SSH (22) y MinIO (9000)
+      ^ here
+alucloud86@lab:~/proyecto_tcc/ansible$
+alucloud86@lab:~/proyecto_tcc/ansible$ ansible-playbook -i inventory.ini deploy-lakehouse.yml
+
+PLAY [Configurar Entorno de Red y Cortafuegos en AWS] ***************************************************************
+
+TASK [AWS Security - Asegurar que el Grupo de Seguridad permite SSH (22) y MinIO (9000)] ****************************
+[WARNING]: Group description does not match existing group. Descriptions cannot be changed without deleting and re-
+creating the security group. Try using state=absent to delete, then rerunning this task.
+changed: [localhost]
+
+PLAY [Despliegue de la Capa de Almacenamiento y Transaccionalidad ACID en Instancias t3.small] **********************
+
+TASK [Gathering Facts] **********************************************************************************************
+fatal: [mi_servidor_dgt]: UNREACHABLE! => {"changed": false, "msg": "Failed to connect to the host via ssh: ssh: connect to host 54.210.34.115 port 22: Connection timed out", "unreachable": true}
+
+PLAY RECAP **********************************************************************************************************
+localhost                  : ok=1    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+mi_servidor_dgt            : ok=0    changed=0    unreachable=1    failed=0    skipped=0    rescued=0    ignored=0
+
+alucloud86@lab:~/proyecto_tcc/ansible$
+alucloud86@lab:~/proyecto_tcc/ansible$

@@ -1,0 +1,147 @@
+---
+###############################################################################
+# 1. PROVISIÓN DE LAS 3 INSTANCIA EN AWS (Idéntico a tu lógica de Hadoop)
+###############################################################################
+- name: "Provisión del Clúster Lakehouse"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    instance_type: t3.small
+    image: ami-0c7217cdde317cfec        # AMI de Ubuntu 22.04 LTS
+    subnet_id: subnet-2bfb6c4f        # Tu subred del laboratorio
+    id: "86"                          # ID de alumno asignado
+  tasks:
+    - name: AWS EC2 - Crear las 3 instancias t3.small simultáneamente
+      ec2:
+        keypair: "alucloud{{ id }}-keypair"
+        group: "gs-aws-{{ id }}"
+        instance_type: "{{ instance_type }}"
+        image: "{{ image }}"
+        wait: true
+        count: 3                      # <--- Cambiado a 3 instancias para tu proyecto
+        vpc_subnet_id: "{{ subnet_id }}"
+        region: "us-east-1"
+        instance_tags:
+          ansible: "proyecto-dgt"     # Tag común para ti y tu compañero
+      register: ec2vms
+      run_once: true
+
+    - name: Inventario - Añadir las nuevas instancias al grupo en memoria
+      add_host: 
+        hostname: "{{ item.public_ip }}" 
+        groupname: lakehouse_hosts 
+        private_ip: "{{ item.private_ip }}"
+      with_items: "{{ ec2vms.instances }}"
+
+    - name: Red - Esperar a que el puerto SSH de los 3 servidores esté listo
+      wait_for:
+        host: "{{ item.public_dns_name }}" 
+        port: 22 
+        delay: 30 
+        timeout: 450 
+        state: started
+      with_items: "{{ ec2vms.instances }}"
+
+
+###############################################################################
+# 2. CONFIGURACIÓN DEL SOFTWARE (Se ejecuta dentro de los servidores creados)
+###############################################################################
+- name: "Configuración e Instalación del Entorno Data Lakehouse"
+  hosts: lakehouse_hosts             # <--- Aplica a los servidores que acabamos de crear arriba
+  become: yes
+  gather_facts: true
+  vars:
+    minio_root_user: "admin_dgt"
+    minio_root_password: "DGT_Secret_Password_2026"
+    minio_data_dir: "/data/dgt-lakehouse"
+    kafka_home: "/opt/kafka_2.13-3.5.0"
+
+  tasks:
+    - name: Wait for cloud-init to finish
+      wait_for: 
+        path: /var/log/cloud-init.log
+        timeout: 300
+        search_regex: "final-message"
+      ignore_errors: yes
+
+    # =========================================================================
+    # OPTIMIZACIÓN DE HARDWARE: CONFIGURACIÓN DE MEMORIA SWAP (CRÍTICO)
+    # =========================================================================
+    - name: Optimización - Verificar si ya existe un archivo Swap activo
+      command: swapon --show
+      register: swap_exist
+      changed_when: false
+
+    - name: Optimización - Crear y activar un archivo Swap de 4GB para mitigar límites de la t3.small
+      shell: |
+        fallocate -l 4G /swapfile
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+      when: swap_exist.stdout == ""
+
+    # =========================================================================
+    # ESPACIO RESERVADO PARA TU COMPAÑERO: CAPA DE INGESTIÓN BASE (JAVA/KAFKA)
+    # =========================================================================
+    # Aquí tu compañero podrá añadir las tareas de instalación de Java y Kafka Broker
+
+
+    # =========================================================================
+    # CONFIGURACIÓN DE LA CAPA DE ALMACENAMIENTO (MinIO)
+    # =========================================================================
+    - name: MinIO - Descargar el binario oficial optimizado para Linux x86_64
+      get_url:
+        url: https://dl.min.io/server/minio/release/linux-amd64/minio
+        dest: /usr/local/bin/minio
+        mode: '0755'
+
+    - name: MinIO - Crear directorio físico para el almacenamiento elástico del Censo DGT
+      file:
+        path: "{{ minio_data_dir }}"
+        state: directory
+        mode: '0777'
+
+    - name: MinIO - Lanzar el servidor MinIO en segundo plano limitando logs
+      shell: "nohup minio server {{ minio_data_dir }} --address :9000 > /var/log/minio.log 2>&1 &"
+      environment:
+        MINIO_ROOT_USER: "{{ minio_root_user }}"
+        MINIO_ROOT_PASSWORD: "{{ minio_root_password }}"
+
+
+    # =========================================================================
+    # CONFIGURACIÓN DE LA CAPA TRANSACCIONAL ACID (Kafka Connect + Apache Hudi)
+    # =========================================================================
+    - name: Lakehouse - Crear archivo de propiedades para el conector Hudi Sink
+      copy:
+        dest: "{{ kafka_home }}/config/hudi-sink.properties"
+        content: |
+          # Propiedades del conector nativo de Apache Hudi
+          name=hudi-sink-dgt
+          connector.class=org.apache.hudi.connect.HoodieSinkConnector
+          tasks.max=1
+          topics=dgt.censo.conductores
+          
+          # Configuración del Data Lakehouse transaccional
+          hoodie.table.name=censo_conductores_hudi
+          hoodie.base.path=s3a://dgt-lakehouse/silver/censo_hudi
+          
+          # Definición de Clave Primaria y Particionamiento Temporal
+          hoodie.datasource.write.recordkey.field=COD_PROVINCIA,IND_SEXO,EDAD
+          hoodie.datasource.write.partitionpath.field=anyo,mes
+          
+          # Credenciales de acceso al Object Storage (MinIO simulando AWS S3)
+          hoodie.connect.s3.endpoint=http://localhost:9000
+          hoodie.connect.s3.access.key={{ minio_root_user }}
+          hoodie.connect.s3.secret.key={{ minio_root_password }}
+        mode: '0644'
+
+    - name: Lakehouse - Iniciar Kafka Connect limitando estrictamente la memoria RAM a 512MB
+      shell: "nohup {{ kafka_home }}/bin/connect-standalone.sh {{ kafka_home }}/config/connect-standalone.properties {{ kafka_home }}/config/hudi-sink.properties > /var/log/kafka-connect-hudi.log 2>&1 &"
+      environment:
+        KAFKA_HEAP_OPTS: "-Xmx512M -Xms512M"
+
+    # =========================================================================
+    # ESPACIO RESERVADO PARA TU COMPAÑERO: CAPA ANALÍTICA (TRINO / DASHBOARD)
+    # =========================================================================

@@ -43,6 +43,8 @@ La solución está diseñada bajo un enfoque estrictamente distribuido, aislando
 └── dashboard/
     └── app.js                    # Backend/Frontend para la visualización analítica
 
+
+
 ```
 ## 🚀 Despliegue Automático
 El entorno se despliega de forma agnóstica a la infraestructura mediante Ansible, ya sea en máquinas locales o en instancias de Amazon EC2.
