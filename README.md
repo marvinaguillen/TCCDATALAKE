@@ -44,20 +44,27 @@ La solución está diseñada bajo un enfoque estrictamente distribuido, aislando
     └── app.js                    # Backend/Frontend para la visualización analítica
 
 
+
+```
 ## 🚀 Despliegue Automático
 El entorno se despliega de forma agnóstica a la infraestructura mediante Ansible, ya sea en máquinas locales o en instancias de Amazon EC2.
 
 Configura las direcciones IP de tus servidores especializados en ansible/inventory.ini.
 
 Ejecuta la receta maestra desde la carpeta ansible:
-
+```bash
 Bash
 ansible-playbook -i inventory.ini deploy-lakehouse.yml
+```
+
 Configura el script de ingesta en el planificador del sistema (crontab -e) para automatizar la descarga mensual:
+
+```bash
 
 Bash
 0 0 5 * * /usr/bin/python3 /opt/ingestion/productor_dgt.py
-📈 Beneficios Técnicos Clave
+```
+## 📈 Beneficios Técnicos Clave
 Aislamiento del "Efecto Dominó": Las consultas pesadas en memoria por parte de Trino no comprometen el rendimiento ni la disponibilidad de Kafka para seguir recibiendo datos.
 
 Soporte de Upserts: Rompe la limitación de inmutabilidad de los Data Lakes tradicionales, permitiendo actualizar registros específicos sin reescribir todo el histórico.
@@ -68,6 +75,6 @@ Autores: Juan Diego López & Marvin Antonio Guillén
 
 Institución: Universitat Politècnica de València (UPV)
 
-Asignatura: Estrategias y Herramientas de Computación Big Data en la Nube (CBD)
+Asignatura: Tecnologías para el Continuo Computacional (TCC)
 
 Profesor: Germán Moltó
